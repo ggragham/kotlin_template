@@ -11,6 +11,23 @@ plugins {
 
     // Apply the application plugin to add support for building a CLI application in Java.
     application
+
+    `maven-publish`
+    id("pl.allegro.tech.build.axion-release") version "1.18.7"
+}
+
+scmVersion {
+    versionIncrementer("incrementPatch")
+    releaseOnlyOnReleaseBranches = true
+    releaseBranchNames.set(setOf("master", "main"))
+}
+
+extra["SCM_VERSION"] = scmVersion.version
+apply(from = "./projectConfig.gradle.kts")
+apply(from = "./checkVersion.gradle.kts")
+
+tasks.named("publish") {
+    dependsOn("checkVersion")
 }
 
 repositories {
@@ -46,4 +63,33 @@ application {
 tasks.named<Test>("test") {
     // Use JUnit Platform for unit tests.
     useJUnitPlatform()
+}
+
+afterEvaluate {
+    publishing {
+        publications {
+            create<MavenPublication>("release") {
+                groupId = extra["GROUP_ID"].toString() // Replace with your group ID
+                artifactId = extra["ARTIFACT_ID"].toString() // Replace with your artifact ID
+                version = extra["SCM_VERSION"].toString()
+
+                afterEvaluate {
+                    from(components["java"])
+                }
+            }
+        }
+
+        repositories {
+            val repositoryOwner = extra["ORGANIZATION"].toString()
+            val repositoryName = extra["REPO"].toString()
+            maven {
+                name = "GitHubPackages"
+                url = uri("https://maven.pkg.github.com/$repositoryOwner/$repositoryName")
+                credentials {
+                    username = extra["GH_USERNAME"].toString()
+                    password = extra["GH_TOKEN"].toString()
+                }
+            }
+        }
+    }
 }

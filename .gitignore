@@ -50,3 +50,6 @@ gradle-app.setting
 
 # Log files (if you are creating logs in debug mode, uncomment this)
 # *.log
+
+# Ignore Gradle build output directory
+build

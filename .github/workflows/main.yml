@@ -1,0 +1,53 @@
+---
+name: Build And Publish
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Build package
+        run: ./gradlew build
+
+      - name: Determine Version and Tag
+        run: |
+          ./gradlew release -Prelease.pushTagsOnly=true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_PUB_PKGS_PAT }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+
+      - name: Publish package
+        run: |
+          ./gradlew publish > gradle.log 2>&1 || true
+          cat gradle.log
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+
+      - name: Handle erros
+        run: |-
+          if grep -q 'Version .* already exists' gradle.log; then
+            echo "Version already exists, treating as success."
+          elif grep -q 'BUILD SUCCESSFUL' gradle.log; then
+            echo "Build successful."
+          else
+            echo "Build failed due to other issues. Check log for details."
+            exit 1
+          fi
